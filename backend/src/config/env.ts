@@ -51,9 +51,14 @@ if (parsed.data.FIREBASE_CREDENTIALS_PATH && existsSync(parsed.data.FIREBASE_CRE
     }
 }
 
+// Helper to safely format private key
+const formatPrivateKey = (key: string) => {
+    return key.replace(/\\n/g, '\n');
+};
+
 export const env = {
     ...parsed.data,
-    FIREBASE_PRIVATE_KEY: parsed.data.FIREBASE_PRIVATE_KEY || firebaseCredentials?.private_key || '',
+    FIREBASE_PRIVATE_KEY: formatPrivateKey(parsed.data.FIREBASE_PRIVATE_KEY || firebaseCredentials?.private_key || ''),
     FIREBASE_CLIENT_EMAIL: parsed.data.FIREBASE_CLIENT_EMAIL || firebaseCredentials?.client_email || '',
 };
 
