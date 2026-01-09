@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment files
+.env
+.env.local
+
+# Firebase credentials - NEVER commit these
+firebase-credentials.json
+*.pem
+*.key
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
