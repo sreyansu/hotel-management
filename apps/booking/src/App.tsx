@@ -39,12 +39,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                     try {
                         await authApi.sync();
                     } catch (syncError: any) {
-                        console.error('Auth Sync Failed:', {
-                            message: syncError.message,
-                            status: syncError.response?.status,
-                            data: syncError.response?.data,
-                            config: syncError.config
-                        });
+                        console.error('Auth Sync Failed:', syncError);
                         throw syncError;
                     }
 
@@ -52,7 +47,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUser(data);
                 } catch (error) {
                     console.error('Failed to initialize user session:', error);
-                    alert('Login failed: Could not connect to backend. Check console for details.');
                     setUser(null);
                 }
             } else {
@@ -68,7 +62,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-    console.log('Current API URL:', import.meta.env.VITE_API_URL || 'Using default relative path /api/v1');
     return (
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
