@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useBookingStore, useAuthStore } from '../store';
+import { useBookingStore, useAuthStore, useIsAuthenticated } from '../store';
 import { bookingsApi, couponsApi } from '../lib/api';
 import { format, differenceInDays } from 'date-fns';
 import { Calendar, Users, Building2, Tag, Check, AlertCircle } from 'lucide-react';
 
 export default function BookingPage() {
     const navigate = useNavigate();
-    const { isAuthenticated, user } = useAuthStore();
+    const { user } = useAuthStore();
+    const isAuthenticated = useIsAuthenticated();
     const booking = useBookingStore();
     const { setBooking } = useBookingStore();
 

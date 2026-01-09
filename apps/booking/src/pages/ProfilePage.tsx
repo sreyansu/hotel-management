@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { useAuthStore } from '../store';
+import { useAuthStore, useIsAuthenticated } from '../store';
 import { authApi } from '../lib/api';
 import { User, Mail, Phone, Save } from 'lucide-react';
 
 export default function ProfilePage() {
-    const { user, isAuthenticated, isLoading: authLoading, setUser } = useAuthStore();
+    const { user, isLoading: authLoading, setUser } = useAuthStore();
+    const isAuthenticated = useIsAuthenticated();
     const navigate = useNavigate();
 
     const [fullName, setFullName] = useState(user?.full_name || '');

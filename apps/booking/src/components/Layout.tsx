@@ -1,11 +1,12 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../store';
+import { useAuthStore, useIsAuthenticated } from '../store';
 import { signOut } from '../lib/firebase';
 import { Menu, X, User, LogOut, Calendar, Home } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Layout() {
-    const { user, isAuthenticated, logout } = useAuthStore();
+    const { user, logout } = useAuthStore();
+    const isAuthenticated = useIsAuthenticated();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 

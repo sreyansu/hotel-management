@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { hotelsApi } from '../lib/api';
-import { useBookingStore, useAuthStore } from '../store';
+import { useBookingStore, useIsAuthenticated } from '../store';
 import { MapPin, Star, Clock, Wifi, Car, Coffee, Users, Check, Calendar } from 'lucide-react';
 import { useState } from 'react';
 import { format, addDays } from 'date-fns';
@@ -9,7 +9,7 @@ import { format, addDays } from 'date-fns';
 export default function HotelPage() {
     const { slug } = useParams<{ slug: string }>();
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuthStore();
+    const isAuthenticated = useIsAuthenticated();
     const { setBooking } = useBookingStore();
 
     const [checkIn, setCheckIn] = useState(format(addDays(new Date(), 1), 'yyyy-MM-dd'));
@@ -153,8 +153,8 @@ export default function HotelPage() {
                                     <div
                                         key={roomType.id}
                                         className={`card p-4 cursor-pointer transition-all ${selectedRoomType === roomType.id
-                                                ? 'ring-2 ring-primary-500 bg-primary-50'
-                                                : 'hover:shadow-lg'
+                                            ? 'ring-2 ring-primary-500 bg-primary-50'
+                                            : 'hover:shadow-lg'
                                             }`}
                                         onClick={() => setSelectedRoomType(roomType.id)}
                                     >

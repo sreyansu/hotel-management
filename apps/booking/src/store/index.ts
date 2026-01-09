@@ -13,7 +13,6 @@ interface User {
 // Auth store
 interface AuthState {
     user: User | null;
-    isAuthenticated: boolean;
     isLoading: boolean;
     setUser: (user: User | null) => void;
     setLoading: (loading: boolean) => void;
@@ -24,11 +23,10 @@ export const useAuthStore = create<AuthState>()(
     persist(
         (set) => ({
             user: null,
-            isAuthenticated: false,
             isLoading: true,
-            setUser: (user) => set({ user, isAuthenticated: !!user }),
+            setUser: (user) => set({ user }),
             setLoading: (isLoading) => set({ isLoading }),
-            logout: () => set({ user: null, isAuthenticated: false }),
+            logout: () => set({ user: null }),
         }),
         {
             name: 'auth-storage',
@@ -36,6 +34,9 @@ export const useAuthStore = create<AuthState>()(
         }
     )
 );
+
+// Create a derived selector for isAuthenticated
+export const useIsAuthenticated = () => useAuthStore((state) => !!state.user);
 
 // Search/booking state
 interface SearchState {

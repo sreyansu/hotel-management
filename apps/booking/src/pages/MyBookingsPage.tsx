@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { bookingsApi } from '../lib/api';
-import { useAuthStore } from '../store';
+import { useAuthStore, useIsAuthenticated } from '../store';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useEffect } from 'react';
@@ -16,7 +16,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function MyBookingsPage() {
-    const { isAuthenticated, isLoading: authLoading } = useAuthStore();
+    const { isLoading: authLoading } = useAuthStore();
+    const isAuthenticated = useIsAuthenticated();
     const navigate = useNavigate();
 
     useEffect(() => {
