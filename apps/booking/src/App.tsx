@@ -36,11 +36,23 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
             if (firebaseUser) {
                 try {
                     // Sync with backend
-                    await authApi.sync();
+                    try {
+                        await authApi.sync();
+                    } catch (syncError: any) {
+                        console.error('Auth Sync Failed:', {
+                            message: syncError.message,
+                            status: syncError.response?.status,
+                            data: syncError.response?.data,
+                            config: syncError.config
+                        });
+                        throw syncError;
+                    }
+
                     const { data } = await authApi.getMe();
                     setUser(data);
                 } catch (error) {
-                    console.error('Failed to sync user:', error);
+                    console.error('Failed to initialize user session:', error);
+                    alert('Login failed: Could not connect to backend. Check console for details.');
                     setUser(null);
                 }
             } else {

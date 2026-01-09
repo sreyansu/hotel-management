@@ -3,15 +3,28 @@ import { createClient } from '@supabase/supabase-js';
 import * as admin from 'firebase-admin';
 
 // Initialize Firebase Admin if not already initialized
+// Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    admin.initializeApp({
-        credential: admin.credential.cert({
-            projectId: process.env.FIREBASE_PROJECT_ID,
-            privateKey: privateKey,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        }),
-    });
+    const rawKey = process.env.FIREBASE_PRIVATE_KEY;
+    const privateKey = rawKey?.includes('\\n')
+        ? rawKey.replace(/\\n/g, '\n')
+        : rawKey;
+
+    if (privateKey) {
+        try {
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: process.env.FIREBASE_PROJECT_ID,
+                    privateKey: privateKey,
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                }),
+            });
+        } catch (error) {
+            console.error('Firebase Admin Init Error:', error);
+        }
+    } else {
+        console.error('FIREBASE_PRIVATE_KEY is missing');
+    }
 }
 
 // Initialize Supabase
