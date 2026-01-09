@@ -28,7 +28,7 @@ const envSchema = z.object({
     GST_PERCENTAGE: z.string().transform(Number).default('18'),
 
     // CORS
-    ALLOWED_ORIGINS: z.string().transform((val) => val.split(',')),
+    ALLOWED_ORIGINS: z.string().default('*').transform((val) => val.split(',')),
 });
 
 const parsed = envSchema.safeParse(process.env);

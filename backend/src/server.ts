@@ -27,8 +27,9 @@ const fastify = Fastify({
 // Register plugins
 async function registerPlugins(): Promise<void> {
     // CORS
+    // CORS
     await fastify.register(cors, {
-        origin: env.ALLOWED_ORIGINS,
+        origin: env.ALLOWED_ORIGINS.includes('*') ? true : env.ALLOWED_ORIGINS,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization'],
         credentials: true,
