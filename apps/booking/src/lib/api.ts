@@ -94,7 +94,7 @@ export const authApi = {
     register: (data: { email: string; password: string; full_name: string; phone?: string }) =>
         api.post('/auth/register', data),
 
-    sync: () => api.post('/auth/sync'),
+    sync: () => api.post('/auth/sync', {}),
 
     getMe: () => api.get('/auth/me'),
 

@@ -28,7 +28,7 @@ api.interceptors.response.use(
 
 // API functions
 export const authApi = {
-    sync: () => api.post('/auth/sync'),
+    sync: () => api.post('/auth/sync', {}),
     getMe: () => api.get('/auth/me'),
 };
 
