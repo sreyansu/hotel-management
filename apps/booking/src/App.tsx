@@ -68,6 +68,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+    console.log('Current API URL:', import.meta.env.VITE_API_URL || 'Using default relative path /api/v1');
     return (
         <QueryClientProvider client={queryClient}>
             <BrowserRouter>
