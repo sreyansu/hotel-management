@@ -1,131 +1,83 @@
-# Netlify Deployment Guide
+# 🚀 Deployment Guide (Railway + Netlify)
 
-## Overview
+This guide describes the recommended deployment architecture for the Hotel Management Platform. This "Hybrid" approach is robust, scalable, and easy to manage.
 
-This monorepo deploys as **3 separate Netlify sites**:
+## 🏗 Architecture
 
-| App | Directory | Deploy Type |
-|-----|-----------|-------------|
-| Consumer Booking | `apps/booking` | Static Site |
-| Admin Dashboard | `apps/dashboard` | Static Site |
-| Backend API | `backend` | Netlify Functions |
+- **Backend (Node.js/Fastify):** Deployed on **Railway** (or Render). Ideally suited for long-running Node.js processes.
+- **Frontends (React/Vite):** Deployed on **Netlify**. Ideally suited for static sites and SPAs.
+- **Database:** Supabase (PostgreSQL).
 
 ---
 
-## Step 1: Push to GitHub
+## 1. Backend Deployment (Render)
 
-First, push your code to GitHub:
+We recommend **Render** for the backend as it offers a free tier and easy setup for Node.js services.
 
-```bash
-cd /Users/sreyansusekharmohanty/hotel
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/hotel.git
-git push -u origin main
-```
+### Steps:
 
----
-
-## Step 2: Deploy Backend API
-
-1. Go to [netlify.com](https://netlify.com) → Add new site → Import existing project
-2. Select your GitHub repo
-3. Configure:
-   - **Base directory:** `backend`
-   - **Build command:** `npm install && npm run build`
-   - **Publish directory:** `dist`
-   - **Functions directory:** `netlify/functions`
-
-4. Add Environment Variables:
-   ```
-   SUPABASE_URL=https://qbmqwgptxvfhqyxdzzkt.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-   FIREBASE_PROJECT_ID=hotel-management-32f3f
-   FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\nMIIEv...
-   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@hotel-management-32f3f.iam.gserviceaccount.com
-   GST_PERCENTAGE=18
-   UPI_MERCHANT_ID=sreyansu90-1@okhdfcbank
-   UPI_MERCHANT_NAME=Sreyansu Sekhar Mohanty
-   ```
-
-5. Deploy!
-
-Your API will be at: `https://YOUR-SITE.netlify.app/api/v1/hotels`
+1.  **Sign up/Login** to [Render](https://render.com/).
+2.  **New click** > **Web Service**.
+3.  **Connect GitHub** and select your repository (`hotel-management`).
+4.  **Configure Service**:
+    -   **Name:** `hotel-backend` (or similar)
+    -   **Root Directory:** `backend`
+    -   **Environment:** `Node`
+    -   **Build Command:** `npm install && npm run build`
+    -   **Start Command:** `npm start`
+5.  **Environment Variables**:
+    -   Go to **Environment** tab.
+    -   Add all variables from your `backend/.env` file.
+    -   **CRITICAL:** For `FIREBASE_PRIVATE_KEY`, if you have issues with newlines, try wrapping the entire key in double quotes or replacing newlines with `\n` literal. Render usually handles the raw copy-paste well.
+6.  **Deploy Web Service**.
+7.  **Copy the URL** (e.g., `https://hotel-backend.onrender.com`). You will need this for the frontend.
 
 ---
 
-## Step 3: Deploy Consumer Booking App
+## 2. Frontend Deployment (Netlify)
 
-1. Create **new** Netlify site (Add new site → Import existing project)
-2. Select same GitHub repo
-3. Configure:
-   - **Base directory:** `apps/booking`
-   - **Build command:** `npm install && npm run build`
-   - **Publish directory:** `dist`
+This repository contains **two** frontend applications. You need to create **two separate sites** on Netlify, linked to the same GitHub repository.
 
-4. Add Environment Variables:
-   ```
-   VITE_API_URL=https://YOUR-BACKEND-SITE.netlify.app/api/v1
-   VITE_FIREBASE_API_KEY=AIzaSyCU7X0MJxPnfox4vHf_968XOs02gaXhhu8
-   VITE_FIREBASE_AUTH_DOMAIN=hotel-management-32f3f.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=hotel-management-32f3f
-   ```
+### A. Consumer Booking App (`apps/booking`)
 
-5. Deploy!
+1.  **New Site from Git** in Netlify.
+2.  Select the **same repository**.
+3.  **Build Settings**:
+    -   **Base directory:** `apps/booking`
+    -   **Build command:** `npm run build`
+    -   **Publish directory:** `dist`
+4.  **Environment Variables**:
+    -   `VITE_API_URL`: **Paste your Railway Backend URL here** (e.g., `https://hotel-backend-production.up.railway.app/api/v1`). **IMPORTANT:** Append `/api/v1` to the end.
+    -   Add your Firebase variables (`VITE_FIREBASE_API_KEY`, etc.).
+5.  **Deploy Site**.
 
----
+### B. Admin Dashboard (`apps/dashboard`)
 
-## Step 4: Deploy Admin Dashboard
-
-1. Create **another new** Netlify site
-2. Select same GitHub repo
-3. Configure:
-   - **Base directory:** `apps/dashboard`
-   - **Build command:** `npm install && npm run build`
-   - **Publish directory:** `dist`
-
-4. Add same environment variables as booking app
-
-5. Deploy!
+1.  **New Site from Git** in Netlify (repeat the process).
+2.  Select the **same repository**.
+3.  **Build Settings**:
+    -   **Base directory:** `apps/dashboard`
+    -   **Build command:** `npm run build`
+    -   **Publish directory:** `dist`
+4.  **Environment Variables**:
+    -   `VITE_API_URL`: **Paste your Railway Backend URL here** (e.g., `https://hotel-backend-production.up.railway.app/api/v1`).
+    -   Add your Firebase variables.
+5.  **Deploy Site**.
 
 ---
 
-## API Endpoints
+## 3. Post-Deployment Verification
 
-Once deployed, your API endpoints will be:
+1.  **Backend Health:** Visit `https://<YOUR_BACKEND_URL>/health`. You should see `{"status":"ok"}`.
+2.  **Frontend Connectivity:** Open your Booking App. Check the Console (F12). It should log the connected API URL. Try to search for hotels.
+3.  **Authentication:** Try to Sign Up/Login. If it fails:
+    -   Check backend logs in Railway.
+    -   Check frontend console for errors.
+    -   Verify `FIREBASE_PRIVATE_KEY` in Railway variables.
 
-| Endpoint | URL |
-|----------|-----|
-| Hotels List | `https://your-backend.netlify.app/api/v1/hotels` |
-| Hotel by Slug | `https://your-backend.netlify.app/api/v1/hotels/slug/{slug}` |
-| Room Types | `https://your-backend.netlify.app/api/v1/hotels/{id}/room-types` |
-| Calculate Price | `POST https://your-backend.netlify.app/api/v1/bookings/calculate-price` |
-| Create Booking | `POST https://your-backend.netlify.app/api/v1/bookings` |
-| Auth Sync | `POST https://your-backend.netlify.app/api/v1/auth/sync` |
-| Validate Coupon | `POST https://your-backend.netlify.app/api/v1/coupons/validate` |
+## 🌟 Open Source Setup
 
----
-
-## Custom Domains (Optional)
-
-In Netlify Dashboard → Site settings → Domain management:
-- Backend: `api.yourdomain.com`
-- Booking: `book.yourdomain.com`
-- Dashboard: `admin.yourdomain.com`
-
----
-
-## Troubleshooting
-
-**CORS Issues:**
-Make sure your API allows requests from your frontend domains.
-
-**Firebase Auth:**
-Ensure your Firebase project has the Netlify domains authorized:
-1. Go to Firebase Console → Authentication → Settings
-2. Add your Netlify domains to "Authorized domains"
-
-**Environment Variables:**
-Double-check all env vars are set correctly. The `FIREBASE_PRIVATE_KEY` must have `\n` for newlines.
+If you are making this public:
+1.  Ensure no `.env` files are committed (checked `gitignore`, looks good).
+2.  The `CONTRIBUTING.md` file (added) guides new users.
+3.  Users will need their own Supabase and Firebase projects.
