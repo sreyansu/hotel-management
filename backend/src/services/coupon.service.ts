@@ -113,10 +113,14 @@ export class CouponService {
             }
         } else if (coupon.discount_type === 'FIXED') {
             discount = coupon.discount_value;
+        } else if (coupon.discount_type === 'FIXED_FINAL') {
+            // Special type: discount_value is the FINAL price, not the discount amount
+            // Calculate discount needed to reach that final price
+            discount = bookingAmount - coupon.discount_value;
         }
 
-        // Ensure discount doesn't exceed booking amount
-        return Math.min(discount, bookingAmount);
+        // Ensure discount doesn't exceed booking amount and isn't negative
+        return Math.max(0, Math.min(discount, bookingAmount));
     }
 
     /**
