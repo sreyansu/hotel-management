@@ -19,8 +19,8 @@ export async function reportsRoutes(fastify: FastifyInstance): Promise<void> {
             to_date?: string;
         };
 
-        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const endDate = to_date || new Date().toISOString().split('T')[0];
+        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+        const endDate = to_date || new Date().toISOString().split('T')[0]!;
 
         // Get total rooms
         const { count: totalRooms } = await supabase
@@ -44,7 +44,7 @@ export async function reportsRoutes(fastify: FastifyInstance): Promise<void> {
         const end = new Date(endDate);
 
         while (currentDate <= end) {
-            const dateStr = currentDate.toISOString().split('T')[0] as string;
+            const dateStr = currentDate.toISOString().split('T')[0]!;
             const occupied = bookings?.filter(b =>
                 b.check_in_date <= dateStr && b.check_out_date > dateStr
             ).length || 0;
@@ -76,8 +76,8 @@ export async function reportsRoutes(fastify: FastifyInstance): Promise<void> {
             to_date?: string;
         };
 
-        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const endDate = to_date || new Date().toISOString().split('T')[0];
+        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+        const endDate = to_date || new Date().toISOString().split('T')[0]!;
 
         // Get completed bookings
         const { data: bookings } = await supabase
@@ -124,8 +124,8 @@ export async function reportsRoutes(fastify: FastifyInstance): Promise<void> {
             to_date?: string;
         };
 
-        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const endDate = to_date || new Date().toISOString().split('T')[0];
+        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+        const endDate = to_date || new Date().toISOString().split('T')[0]!;
 
         // Get all bookings in range
         const { data: bookings } = await supabase
@@ -168,8 +168,8 @@ export async function reportsRoutes(fastify: FastifyInstance): Promise<void> {
             to_date?: string;
         };
 
-        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-        const endDate = to_date || new Date().toISOString().split('T')[0];
+        const startDate = from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+        const endDate = to_date || new Date().toISOString().split('T')[0]!;
 
         // Get room types
         const { data: roomTypes } = await supabase

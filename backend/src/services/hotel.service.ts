@@ -95,7 +95,7 @@ export class HotelService {
         return {
             ...hotel,
             images: images || [],
-            amenities: amenities as HotelWithDetails['amenities'],
+            amenities: amenities as unknown as HotelWithDetails['amenities'],
             room_types: roomTypes || [],
         } as HotelWithDetails;
     }
@@ -228,7 +228,7 @@ export class HotelService {
 
             result.push({
                 ...roomType,
-                amenities: amenities as RoomTypeWithAmenities['amenities'],
+                amenities: amenities as unknown as RoomTypeWithAmenities['amenities'],
                 available_count: availableCount,
             } as RoomTypeWithAmenities);
         }

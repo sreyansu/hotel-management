@@ -84,8 +84,8 @@ function startCleanupJob(): void {
             if (expired > 0) {
                 fastify.log.info(`Expired ${expired} payment sessions`);
             }
-        } catch (error) {
-            fastify.log.error('Session cleanup error:', error);
+        } catch (error: unknown) {
+            fastify.log.error({ err: error }, 'Session cleanup error');
         }
     }, CLEANUP_INTERVAL);
 }
@@ -98,8 +98,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
         await fastify.close();
         fastify.log.info('Server closed successfully');
         process.exit(0);
-    } catch (error) {
-        fastify.log.error('Error during shutdown:', error);
+    } catch (error: unknown) {
+        fastify.log.error({ err: error }, 'Error during shutdown');
         process.exit(1);
     }
 }
@@ -135,8 +135,8 @@ Health: http://localhost:${env.PORT}/health
         process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
         process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-    } catch (error) {
-        fastify.log.error('Failed to start server:', error);
+    } catch (error: unknown) {
+        fastify.log.error({ err: error }, 'Failed to start server');
         process.exit(1);
     }
 }

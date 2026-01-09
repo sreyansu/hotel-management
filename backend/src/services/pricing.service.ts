@@ -84,7 +84,7 @@ export class PricingService {
      * Get seasonal multiplier for a specific date
      */
     getSeasonalMultiplier(config: PricingConfig, date: Date): number {
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = date.toISOString().split('T')[0]!;
 
         for (const season of config.seasonal_pricing) {
             if (dateStr >= season.start_date && dateStr <= season.end_date) {
