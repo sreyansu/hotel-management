@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "tsx watch src/server.ts",
         "build": "tsc",
+        "build:netlify": "tsc && cp -r netlify dist/",
         "start": "node dist/server.js",
         "lint": "eslint src --ext .ts",
         "test": "vitest",
@@ -15,6 +16,7 @@
         "@fastify/cors": "^9.0.1",
         "@fastify/helmet": "^11.1.1",
         "@fastify/rate-limit": "^9.1.0",
+        "@netlify/functions": "^2.8.1",
         "@supabase/supabase-js": "^2.45.0",
         "dotenv": "^16.4.5",
         "fastify": "^4.28.1",
@@ -36,6 +38,6 @@
         "vitest": "^2.0.5"
     },
     "engines": {
-        "node": ">=20.0.0"
+        "node": ">=18.0.0"
     }
 }
