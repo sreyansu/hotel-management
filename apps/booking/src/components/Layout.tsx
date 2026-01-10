@@ -10,6 +10,8 @@ export default function Layout() {
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+    console.log('Layout Render:', { user, isAuthenticated });
+
     const handleLogout = async () => {
         await signOut();
         logout();
