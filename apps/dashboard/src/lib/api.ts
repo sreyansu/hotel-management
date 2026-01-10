@@ -95,8 +95,11 @@ export const staffApi = {
         return supabase.from('user_roles').insert({ user_id: userId, hotel_id: hotelId, role: data.role });
     },
 
-    remove: (hotelId: string, userId: string) =>
-        supabase.from('user_roles').delete().match({ user_id: userId, hotel_id: hotelId }),
+    remove: async (hotelId: string, userId: string) => {
+        const { error } = await supabase.from('user_roles').delete().match({ user_id: userId, hotel_id: hotelId });
+        if (error) throw error;
+        return { data: { success: true } };
+    },
 };
 
 export const reportsApi = {
