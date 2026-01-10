@@ -31,46 +31,72 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     const { setUser, setLoading } = useAuthStore();
 
     useEffect(() => {
-        const unsubscribe = onAuthChange(async (supabaseUser) => {
-            if (supabaseUser) {
-                try {
-                    // Get user profile from database
-                    const { data: profile, error } = await supabase
+        // Check initial session on app load
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                await loadUserProfile(session.user.id, session.user);
+            } else {
+                setLoading(false);
+            }
+        };
+
+        // Load user profile from database
+        const loadUserProfile = async (userId: string, supabaseUser: any) => {
+            try {
+                const { data: profile, error } = await supabase
+                    .from('users')
+                    .select('*, user_roles(*)')
+                    .eq('id', userId)
+                    .single();
+
+                if (error || !profile) {
+                    // User doesn't have a profile yet - create one
+                    const { data: newProfile } = await supabase
                         .from('users')
+                        .insert({
+                            id: userId,
+                            email: supabaseUser.email || '',
+                            full_name: supabaseUser.user_metadata?.full_name || supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
+                        })
                         .select('*, user_roles(*)')
-                        .eq('id', supabaseUser.id)
                         .single();
 
-                    if (error || !profile) {
-                        // User doesn't have a profile yet - create one
-                        const { data: newProfile } = await supabase
-                            .from('users')
-                            .insert({
-                                id: supabaseUser.id,
-                                email: supabaseUser.email || '',
-                                full_name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
-                            })
-                            .select('*, user_roles(*)')
-                            .single();
-
-                        setUser(newProfile);
-                    } else {
-                        setUser({
-                            ...profile,
-                            roles: profile.user_roles || [],
-                        });
+                    if (newProfile) {
+                        // Also create customer role
+                        await supabase.from('user_roles').insert({ user_id: userId, role: 'CUSTOMER' }).select();
+                        setUser({ ...newProfile, roles: [{ role: 'CUSTOMER' }] });
                     }
-                } catch (error) {
-                    console.error('Failed to load user profile:', error);
-                    setUser(null);
+                } else {
+                    setUser({
+                        ...profile,
+                        roles: profile.user_roles || [],
+                    });
                 }
-            } else {
+            } catch (error) {
+                console.error('Failed to load user profile:', error);
                 setUser(null);
             }
             setLoading(false);
-        });
+        };
 
-        return unsubscribe;
+        // Check session on load
+        checkSession();
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                console.log('Auth event:', event);
+                if (event === 'SIGNED_IN' && session?.user) {
+                    await loadUserProfile(session.user.id, session.user);
+                } else if (event === 'SIGNED_OUT') {
+                    setUser(null);
+                    setLoading(false);
+                }
+            }
+        );
+
+        return () => subscription.unsubscribe();
     }, [setUser, setLoading]);
 
     return <>{children}</>;
