@@ -177,47 +177,58 @@ FROM hotels WHERE slug = 'grand-palace-delhi';
 -- Create Rooms for each hotel/room type
 -- =============================================
 
--- Mumbai Rooms
+-- Mumbai Rooms (simple approach - 10 rooms per room type)
 INSERT INTO rooms (hotel_id, room_type_id, room_number, floor, status)
 SELECT 
-    h.id as hotel_id,
-    rt.id as room_type_id,
-    CONCAT(floor_num, LPAD(room_num::text, 2, '0')) as room_number,
-    floor_num as floor,
-    CASE WHEN random() < 0.7 THEN 'AVAILABLE' ELSE 'OCCUPIED' END::room_status as status
-FROM hotels h
-CROSS JOIN room_types rt
-CROSS JOIN generate_series(1, 5) as floor_num
-CROSS JOIN generate_series(1, 4) as room_num
-WHERE h.slug = 'grand-palace-mumbai' AND rt.hotel_id = h.id;
+    rt.hotel_id,
+    rt.id,
+    (100 + (ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id)) + 
+     (CASE 
+        WHEN rt.name = 'Deluxe Room' THEN 0
+        WHEN rt.name = 'Sea View Suite' THEN 100
+        WHEN rt.name = 'Presidential Suite' THEN 200
+        ELSE 300
+     END))::text,
+    CEIL((ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id))::float / 5)::int,
+    'AVAILABLE'::room_status
+FROM room_types rt
+CROSS JOIN generate_series(1, 10) as room_idx
+WHERE rt.hotel_id = (SELECT id FROM hotels WHERE slug = 'grand-palace-mumbai');
 
--- Goa Rooms
+-- Goa Rooms (10 rooms per room type)
 INSERT INTO rooms (hotel_id, room_type_id, room_number, floor, status)
 SELECT 
-    h.id as hotel_id,
-    rt.id as room_type_id,
-    CONCAT(floor_num, LPAD(room_num::text, 2, '0')) as room_number,
-    floor_num as floor,
-    CASE WHEN random() < 0.6 THEN 'AVAILABLE' ELSE 'OCCUPIED' END::room_status as status
-FROM hotels h
-CROSS JOIN room_types rt
-CROSS JOIN generate_series(1, 3) as floor_num
-CROSS JOIN generate_series(1, 5) as room_num
-WHERE h.slug = 'grand-palace-goa' AND rt.hotel_id = h.id;
+    rt.hotel_id,
+    rt.id,
+    (100 + (ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id)) + 
+     (CASE 
+        WHEN rt.name = 'Garden View Room' THEN 0
+        WHEN rt.name = 'Beach Villa' THEN 100
+        WHEN rt.name = 'Pool Suite' THEN 200
+        ELSE 300
+     END))::text,
+    CEIL((ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id))::float / 5)::int,
+    'AVAILABLE'::room_status
+FROM room_types rt
+CROSS JOIN generate_series(1, 10) as room_idx
+WHERE rt.hotel_id = (SELECT id FROM hotels WHERE slug = 'grand-palace-goa');
 
--- Bangalore Rooms
+-- Bangalore Rooms (10 rooms per room type)
 INSERT INTO rooms (hotel_id, room_type_id, room_number, floor, status)
 SELECT 
-    h.id as hotel_id,
-    rt.id as room_type_id,
-    CONCAT(floor_num, LPAD(room_num::text, 2, '0')) as room_number,
-    floor_num as floor,
-    CASE WHEN random() < 0.5 THEN 'AVAILABLE' ELSE 'OCCUPIED' END::room_status as status
-FROM hotels h
-CROSS JOIN room_types rt
-CROSS JOIN generate_series(1, 8) as floor_num
-CROSS JOIN generate_series(1, 6) as room_num
-WHERE h.slug = 'grand-palace-bangalore' AND rt.hotel_id = h.id;
+    rt.hotel_id,
+    rt.id,
+    (100 + (ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id)) + 
+     (CASE 
+        WHEN rt.name = 'Business Room' THEN 0
+        WHEN rt.name = 'Executive Suite' THEN 100
+        ELSE 200
+     END))::text,
+    CEIL((ROW_NUMBER() OVER (PARTITION BY rt.id ORDER BY rt.id))::float / 5)::int,
+    'AVAILABLE'::room_status
+FROM room_types rt
+CROSS JOIN generate_series(1, 10) as room_idx
+WHERE rt.hotel_id = (SELECT id FROM hotels WHERE slug = 'grand-palace-bangalore');
 
 -- =============================================
 -- Hotel Amenities
@@ -253,13 +264,13 @@ INSERT INTO seasonal_pricing (hotel_id, name, start_date, end_date, multiplier)
 SELECT id, 'Monsoon Off-Season', '2026-06-01', '2026-09-15', 0.7 FROM hotels WHERE slug = 'grand-palace-goa';
 
 -- Occupancy Pricing
-INSERT INTO occupancy_pricing (hotel_id, min_occupancy, max_occupancy, multiplier)
+INSERT INTO occupancy_pricing (hotel_id, min_occupancy_pct, max_occupancy_pct, multiplier)
 SELECT id, 0, 50, 1.0 FROM hotels WHERE slug IN ('grand-palace-mumbai', 'grand-palace-goa', 'grand-palace-bangalore');
 
-INSERT INTO occupancy_pricing (hotel_id, min_occupancy, max_occupancy, multiplier)
+INSERT INTO occupancy_pricing (hotel_id, min_occupancy_pct, max_occupancy_pct, multiplier)
 SELECT id, 51, 80, 1.15 FROM hotels WHERE slug IN ('grand-palace-mumbai', 'grand-palace-goa', 'grand-palace-bangalore');
 
-INSERT INTO occupancy_pricing (hotel_id, min_occupancy, max_occupancy, multiplier)
+INSERT INTO occupancy_pricing (hotel_id, min_occupancy_pct, max_occupancy_pct, multiplier)
 SELECT id, 81, 100, 1.3 FROM hotels WHERE slug IN ('grand-palace-mumbai', 'grand-palace-goa', 'grand-palace-bangalore');
 
 -- =============================================
@@ -267,11 +278,12 @@ SELECT id, 81, 100, 1.3 FROM hotels WHERE slug IN ('grand-palace-mumbai', 'grand
 -- =============================================
 
 -- Global coupons
-INSERT INTO coupons (code, description, discount_type, discount_value, min_booking_amount, valid_from, valid_until, max_uses)
+INSERT INTO coupons (code, description, discount_type, discount_value, min_booking_amount, valid_from, valid_until, usage_limit)
 VALUES 
     ('WELCOME20', 'Welcome discount for new customers', 'PERCENTAGE', 20, 5000, '2026-01-01', '2026-12-31', 1000),
     ('SUMMER10', 'Summer special offer', 'PERCENTAGE', 10, 3000, '2026-03-01', '2026-06-30', 500),
-    ('FLAT1000', 'Flat ₹1000 off on bookings', 'FIXED', 1000, 8000, '2026-01-01', '2026-06-30', 200);
+    ('FLAT1000', 'Flat ₹1000 off on bookings', 'FIXED', 1000, 8000, '2026-01-01', '2026-06-30', 200),
+    ('ILIKE100', 'Test Coupon - 99% Off', 'PERCENTAGE', 99, 0, '2026-01-01', '2026-12-31', 10000);
 
 -- Hotel-specific coupons
 INSERT INTO coupons (code, description, discount_type, discount_value, hotel_id, min_booking_amount, valid_from, valid_until)

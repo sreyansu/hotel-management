@@ -41,8 +41,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        // Load user profile from database
-        const loadUserProfile = async (userId: string, supabaseUser: any) => {
+        // Load user profile from database with retry
+        const loadUserProfile = async (userId: string, supabaseUser: any, retries = 3) => {
             try {
                 const { data: profile, error } = await supabase
                     .from('users')
@@ -51,7 +51,13 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                     .single();
 
                 if (error || !profile) {
-                    // User doesn't have a profile yet - create one
+                    if (retries > 0) {
+                        // Wait 1s and retry (trigger might be slow)
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return loadUserProfile(userId, supabaseUser, retries - 1);
+                    }
+
+                    // User doesn't have a profile yet (trigger failed?) - create one manually
                     const { data: newProfile } = await supabase
                         .from('users')
                         .insert({
@@ -75,6 +81,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch (error) {
                 console.error('Failed to load user profile:', error);
+
+                if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    return loadUserProfile(userId, supabaseUser, retries - 1);
+                }
+
                 setUser(null);
             }
             setLoading(false);
