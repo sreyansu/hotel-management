@@ -5,6 +5,7 @@ import rateLimit from '@fastify/rate-limit';
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { authRoutes } from './routes/auth.routes.js';
+import { adminRoutes } from './routes/admin.routes.js';
 import { hotelRoutes } from './routes/hotels.routes.js';
 import { bookingRoutes } from './routes/bookings.routes.js';
 import { couponRoutes } from './routes/coupons.routes.js';
@@ -61,6 +62,7 @@ async function registerRoutes(): Promise<void> {
 
     // API routes
     await fastify.register(authRoutes, { prefix: '/api/v1/auth' });
+    await fastify.register(adminRoutes, { prefix: '/api/v1/admin' });
     await fastify.register(hotelRoutes, { prefix: '/api/v1/hotels' });
     await fastify.register(bookingRoutes, { prefix: '/api/v1/bookings' });
     await fastify.register(couponRoutes, { prefix: '/api/v1/coupons' });

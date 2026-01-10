@@ -80,3 +80,20 @@ export const reportsApi = {
     getRevenue: (hotelId: string, params?: any) => api.get(`/reports/hotel/${hotelId}/revenue`, { params }),
     getBookings: (hotelId: string, params?: any) => api.get(`/reports/hotel/${hotelId}/bookings`, { params }),
 };
+
+export const adminApi = {
+    setup: () => api.post('/admin/setup', {}),
+    getUsers: (params?: { page?: number; limit?: number }) => api.get('/admin/users', { params }),
+    createUser: (data: {
+        email: string;
+        password: string;
+        full_name: string;
+        phone?: string;
+        role: string;
+        hotel_id?: string;
+    }) => api.post('/admin/users', data),
+    assignRole: (userId: string, data: { role: string; hotel_id?: string }) =>
+        api.post(`/admin/users/${userId}/roles`, data),
+    removeRole: (userId: string, roleId: string) =>
+        api.delete(`/admin/users/${userId}/roles/${roleId}`),
+};

@@ -201,3 +201,33 @@ export async function optionalAuthenticate(
         console.warn('Optional auth failed:', error);
     }
 }
+
+/**
+ * Role-based authorization middleware
+ * Use after authenticate middleware
+ */
+export function requireRole(allowedRoles: UserRole[]) {
+    return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+        if (!request.user) {
+            return reply.status(401).send({
+                error: 'Unauthorized',
+                message: 'Authentication required',
+            });
+        }
+
+        const userRoles = request.user.roles.map((r) => r.role);
+        const hasRole = allowedRoles.some((role) => userRoles.includes(role));
+
+        // SUPER_ADMIN has access to everything
+        if (userRoles.includes('SUPER_ADMIN')) {
+            return;
+        }
+
+        if (!hasRole) {
+            return reply.status(403).send({
+                error: 'Forbidden',
+                message: `Access denied. Required roles: ${allowedRoles.join(', ')}`,
+            });
+        }
+    };
+}
