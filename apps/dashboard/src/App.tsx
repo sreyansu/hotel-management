@@ -44,10 +44,36 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                     // Check if user has staff role
                     const staffRoles = ['SUPER_ADMIN', 'HOTEL_ADMIN', 'DUTY_MANAGER', 'RECEPTION', 'HOUSEKEEPING', 'ACCOUNTS'];
                     const userRoles = profile.user_roles || [];
+
                     if (userRoles.some((r: any) => staffRoles.includes(r.role))) {
+                        // Calculate highest role
+                        const rolePriority = {
+                            'SUPER_ADMIN': 6,
+                            'HOTEL_ADMIN': 5,
+                            'DUTY_MANAGER': 4,
+                            'ACCOUNTS': 3,
+                            'RECEPTION': 2,
+                            'HOUSEKEEPING': 1,
+                            'CUSTOMER': 0
+                        };
+
+                        const highestRole = userRoles.reduce((prev: any, curr: any) => {
+                            if (!prev) return curr.role;
+                            const prevP = rolePriority[prev as keyof typeof rolePriority] || 0;
+                            const currP = rolePriority[curr.role as keyof typeof rolePriority] || 0;
+                            return currP > prevP ? curr.role : prev;
+                        }, '') as string;
+
+                        // Calculate hotel IDs
+                        const hotelIds = userRoles
+                            .map((r: any) => r.hotel_id)
+                            .filter((id: any) => !!id);
+
                         setUser({
                             ...profile,
                             roles: userRoles,
+                            highest_role: highestRole,
+                            hotel_ids: hotelIds
                         });
                     } else {
                         setUser(null); // Customer - not allowed in dashboard

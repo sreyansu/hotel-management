@@ -68,11 +68,35 @@ export const pricingApi = {
 };
 
 export const staffApi = {
-    getHotelStaff: (hotelId: string) => api.get(`/staff/hotel/${hotelId}`),
-    create: (hotelId: string, data: any) => api.post(`/staff/hotel/${hotelId}`, data),
-    updateRole: (hotelId: string, userId: string, data: { role: string }) =>
-        api.put(`/staff/hotel/${hotelId}/user/${userId}`, data),
-    remove: (hotelId: string, userId: string) => api.delete(`/staff/hotel/${hotelId}/user/${userId}`),
+    getHotelStaff: async (hotelId: string) => {
+        const { data, error } = await supabase
+            .from('user_roles')
+            .select('user:users(*), role')
+            .eq('hotel_id', hotelId);
+
+        if (error) throw error;
+
+        // Transform to match expected format
+        const staff = data.map((item: any) => ({
+            user: item.user,
+            roles: [item.role],
+        }));
+
+        return { data: staff };
+    },
+
+    // Use adminApi for creation
+    create: (hotelId: string, data: any) => adminApi.createUser({ ...data, hotel_id: hotelId }),
+
+    updateRole: async (hotelId: string, userId: string, data: { role: string }) => {
+        // First remove old role for this hotel
+        await supabase.from('user_roles').delete().match({ user_id: userId, hotel_id: hotelId });
+        // Add new role
+        return supabase.from('user_roles').insert({ user_id: userId, hotel_id: hotelId, role: data.role });
+    },
+
+    remove: (hotelId: string, userId: string) =>
+        supabase.from('user_roles').delete().match({ user_id: userId, hotel_id: hotelId }),
 };
 
 export const reportsApi = {
@@ -83,17 +107,59 @@ export const reportsApi = {
 
 export const adminApi = {
     setup: () => api.post('/admin/setup', {}),
-    getUsers: (params?: { page?: number; limit?: number }) => api.get('/admin/users', { params }),
-    createUser: (data: {
+
+    getUsers: async (params?: { page?: number; limit?: number }) => {
+        const { data, error, count } = await supabase
+            .from('users')
+            .select('*, user_roles(*)', { count: 'exact' })
+            .range(
+                ((params?.page || 1) - 1) * (params?.limit || 10),
+                (params?.page || 1) * (params?.limit || 10) - 1
+            );
+        if (error) throw error;
+        return { data: { data, pagination: { total: count } } };
+    },
+
+    createUser: async (data: {
         email: string;
         password: string;
         full_name: string;
-        phone?: string;
         role: string;
         hotel_id?: string;
-    }) => api.post('/admin/users', data),
-    assignRole: (userId: string, data: { role: string; hotel_id?: string }) =>
-        api.post(`/admin/users/${userId}/roles`, data),
-    removeRole: (userId: string, roleId: string) =>
-        api.delete(`/admin/users/${userId}/roles/${roleId}`),
+        phone?: string;
+    }) => {
+        const { data: session } = await supabase.auth.getSession();
+        return axios.post(`${API_BASE_URL}/create-user`,
+            {
+                email: data.email,
+                password: data.password,
+                fullName: data.full_name,
+                role: data.role,
+                hotelIds: data.hotel_id ? [data.hotel_id] : [],
+                phone: data.phone
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${session.session?.access_token}`
+                }
+            }
+        );
+    },
+
+    assignRole: async (userId: string, data: { role: string; hotel_id?: string }) => {
+        const { error } = await supabase
+            .from('user_roles')
+            .insert({ user_id: userId, role: data.role, hotel_id: data.hotel_id });
+        if (error) throw error;
+        return { data: { success: true } };
+    },
+
+    removeRole: async (userId: string, role: string) => {
+        const { error } = await supabase
+            .from('user_roles')
+            .delete()
+            .match({ user_id: userId, role });
+        if (error) throw error;
+        return { data: { success: true } };
+    },
 };
