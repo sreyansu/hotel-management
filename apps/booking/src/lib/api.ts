@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { getIdToken } from './firebase';
+import { supabase } from './supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_SUPABASE_URL + '/functions/v1';
 
 export const api = axios.create({
     baseURL: API_BASE_URL,
@@ -12,9 +12,9 @@ export const api = axios.create({
 
 // Request interceptor to add auth token
 api.interceptors.request.use(async (config) => {
-    const token = await getIdToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+        config.headers.Authorization = `Bearer ${session.access_token}`;
     }
     return config;
 });

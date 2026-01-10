@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { onAuthChange } from './lib/firebase';
-import { authApi } from './lib/api';
+import { onAuthChange, supabase } from './lib/supabase';
 import { useAuthStore, hasRole } from './store';
 
 // Layout
@@ -25,21 +24,36 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     const { setUser, setLoading, user } = useAuthStore();
 
     useEffect(() => {
-        const unsubscribe = onAuthChange(async (firebaseUser) => {
-            if (firebaseUser) {
+        const unsubscribe = onAuthChange(async (supabaseUser) => {
+            if (supabaseUser) {
                 try {
-                    await authApi.sync();
-                    const { data } = await authApi.getMe();
+                    // Get user profile with roles from database
+                    const { data: profile, error } = await supabase
+                        .from('users')
+                        .select('*, user_roles(*)')
+                        .eq('id', supabaseUser.id)
+                        .single();
+
+                    if (error || !profile) {
+                        console.error('Failed to load profile:', error);
+                        setUser(null);
+                        setLoading(false);
+                        return;
+                    }
 
                     // Check if user has staff role
                     const staffRoles = ['SUPER_ADMIN', 'HOTEL_ADMIN', 'DUTY_MANAGER', 'RECEPTION', 'HOUSEKEEPING', 'ACCOUNTS'];
-                    if (data.roles?.some((r: any) => staffRoles.includes(r.role))) {
-                        setUser(data);
+                    const userRoles = profile.user_roles || [];
+                    if (userRoles.some((r: any) => staffRoles.includes(r.role))) {
+                        setUser({
+                            ...profile,
+                            roles: userRoles,
+                        });
                     } else {
-                        setUser(null); // Customer - not allowed
+                        setUser(null); // Customer - not allowed in dashboard
                     }
                 } catch (error) {
-                    console.error('Auth sync failed:', error);
+                    console.error('Auth failed:', error);
                     setUser(null);
                 }
             } else {

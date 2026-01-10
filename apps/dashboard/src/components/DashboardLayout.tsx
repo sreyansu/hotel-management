@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, hasRole } from '../store';
-import { signOut } from '../lib/firebase';
+import { signOut } from '../lib/supabase';
 import { hotelsApi } from '../lib/api';
 import {
     LayoutDashboard,

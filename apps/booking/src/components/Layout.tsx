@@ -1,6 +1,6 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore, useIsAuthenticated } from '../store';
-import { signOut } from '../lib/firebase';
+import { signOut } from '../lib/supabase';
 import { Menu, X, User, LogOut, Calendar, Home } from 'lucide-react';
 import { useState } from 'react';
 

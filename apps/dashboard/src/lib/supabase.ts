@@ -20,28 +20,6 @@ export async function signIn(email: string, password: string) {
     return data.user;
 }
 
-export async function signUp(email: string, password: string, fullName: string) {
-    const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-            data: {
-                full_name: fullName,
-            },
-            emailRedirectTo: `${window.location.origin}/login?verified=true`,
-        },
-    });
-    if (error) throw error;
-
-    // Check if email confirmation is required
-    if (data.user && !data.session) {
-        // User created but needs to verify email
-        return { user: data.user, needsEmailVerification: true };
-    }
-
-    return { user: data.user, needsEmailVerification: false };
-}
-
 export async function signInWithGoogle() {
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -77,14 +55,5 @@ export async function getUser(): Promise<User | null> {
     return user;
 }
 
-export async function resendVerificationEmail(email: string) {
-    const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-    });
-    if (error) throw error;
-}
-
 // Re-export types
 export type { User, Session };
-

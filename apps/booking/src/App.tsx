@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { onAuthChange } from './lib/firebase';
-import { authApi } from './lib/api';
+import { onAuthChange, supabase } from './lib/supabase';
 import { useAuthStore } from './store';
 
 // Layout
@@ -32,21 +31,37 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     const { setUser, setLoading } = useAuthStore();
 
     useEffect(() => {
-        const unsubscribe = onAuthChange(async (firebaseUser) => {
-            if (firebaseUser) {
+        const unsubscribe = onAuthChange(async (supabaseUser) => {
+            if (supabaseUser) {
                 try {
-                    // Sync with backend
-                    try {
-                        await authApi.sync();
-                    } catch (syncError: any) {
-                        console.error('Auth Sync Failed:', syncError);
-                        throw syncError;
-                    }
+                    // Get user profile from database
+                    const { data: profile, error } = await supabase
+                        .from('users')
+                        .select('*, user_roles(*)')
+                        .eq('id', supabaseUser.id)
+                        .single();
 
-                    const { data } = await authApi.getMe();
-                    setUser(data);
+                    if (error || !profile) {
+                        // User doesn't have a profile yet - create one
+                        const { data: newProfile } = await supabase
+                            .from('users')
+                            .insert({
+                                id: supabaseUser.id,
+                                email: supabaseUser.email || '',
+                                full_name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0] || 'User',
+                            })
+                            .select('*, user_roles(*)')
+                            .single();
+
+                        setUser(newProfile);
+                    } else {
+                        setUser({
+                            ...profile,
+                            roles: profile.user_roles || [],
+                        });
+                    }
                 } catch (error) {
-                    console.error('Failed to initialize user session:', error);
+                    console.error('Failed to load user profile:', error);
                     setUser(null);
                 }
             } else {
