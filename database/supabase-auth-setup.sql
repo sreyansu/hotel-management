@@ -32,30 +32,43 @@ CREATE TRIGGER on_auth_user_created
 
 -- =====================================================
 -- RLS POLICIES FOR DIRECT SDK ACCESS
+-- (Idempotent - safe to run multiple times)
 -- =====================================================
 
+-- Enable RLS on tables
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
+
 -- Users can read their own profile
+DROP POLICY IF EXISTS "Users can read own profile" ON public.users;
 CREATE POLICY "Users can read own profile"
     ON public.users FOR SELECT
     USING (auth.uid() = id);
 
 -- Users can update their own profile
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
 CREATE POLICY "Users can update own profile"
     ON public.users FOR UPDATE
     USING (auth.uid() = id)
     WITH CHECK (auth.uid() = id);
 
 -- Users can read their own roles
+DROP POLICY IF EXISTS "Users can read own roles" ON public.user_roles;
 CREATE POLICY "Users can read own roles"
     ON public.user_roles FOR SELECT
     USING (auth.uid() = user_id);
 
 -- Users can read their own bookings
+DROP POLICY IF EXISTS "Users can read own bookings" ON public.bookings;
 CREATE POLICY "Users can read own bookings"
     ON public.bookings FOR SELECT
     USING (auth.uid() = user_id);
 
 -- Users can create bookings for themselves
+DROP POLICY IF EXISTS "Users can create own bookings" ON public.bookings;
 CREATE POLICY "Users can create own bookings"
     ON public.bookings FOR INSERT
     WITH CHECK (auth.uid() = user_id);
@@ -77,31 +90,37 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Admins can read all users
+DROP POLICY IF EXISTS "Admins can read all users" ON public.users;
 CREATE POLICY "Admins can read all users"
     ON public.users FOR SELECT
     USING (public.is_admin());
 
 -- Admins can read all bookings
+DROP POLICY IF EXISTS "Admins can read all bookings" ON public.bookings;
 CREATE POLICY "Admins can read all bookings"
     ON public.bookings FOR SELECT
     USING (public.is_admin());
 
 -- Admins can update booking status
+DROP POLICY IF EXISTS "Admins can update bookings" ON public.bookings;
 CREATE POLICY "Admins can update bookings"
     ON public.bookings FOR UPDATE
     USING (public.is_admin());
 
 -- Admins can manage coupons
+DROP POLICY IF EXISTS "Admins can manage coupons" ON public.coupons;
 CREATE POLICY "Admins can manage coupons"
     ON public.coupons FOR ALL
     USING (public.is_admin());
 
 -- Admins can manage rooms
+DROP POLICY IF EXISTS "Admins can manage rooms" ON public.rooms;
 CREATE POLICY "Admins can manage rooms"
     ON public.rooms FOR ALL
     USING (public.is_admin());
 
 -- Admins can manage staff roles
+DROP POLICY IF EXISTS "Admins can manage roles" ON public.user_roles;
 CREATE POLICY "Admins can manage roles"
     ON public.user_roles FOR ALL
     USING (

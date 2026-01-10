@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { bookingsApi } from '../lib/api';
+import { getMyBookings } from '../lib/queries';
 import { useAuthStore, useIsAuthenticated } from '../store';
 import { Calendar, MapPin, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -26,13 +26,11 @@ export default function MyBookingsPage() {
         }
     }, [isAuthenticated, authLoading, navigate]);
 
-    const { data, isLoading } = useQuery({
+    const { data: bookings = [], isLoading } = useQuery({
         queryKey: ['myBookings'],
-        queryFn: () => bookingsApi.getMyBookings(),
+        queryFn: getMyBookings,
         enabled: isAuthenticated,
     });
-
-    const bookings = data?.data?.data || [];
 
     if (authLoading || isLoading) {
         return (
@@ -74,13 +72,13 @@ export default function MyBookingsPage() {
                                 </div>
 
                                 <h3 className="font-display text-lg font-bold text-gray-900 group-hover:text-primary-600 transition">
-                                    {booking.hotel?.name}
+                                    {booking.hotels?.name}
                                 </h3>
 
                                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
                                     <span className="flex items-center gap-1">
                                         <MapPin className="w-4 h-4" />
-                                        {booking.room_type?.name}
+                                        {booking.room_types?.name}
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Calendar className="w-4 h-4" />

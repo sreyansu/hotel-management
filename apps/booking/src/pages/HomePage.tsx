@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { hotelsApi } from '../lib/api';
+import { getHotels } from '../lib/queries';
 import { MapPin, Star, Wifi, Car, Coffee, Dumbbell, Search } from 'lucide-react';
 import { useState } from 'react';
 
@@ -18,12 +18,15 @@ interface Hotel {
 export default function HomePage() {
     const [searchCity, setSearchCity] = useState('');
 
-    const { data, isLoading } = useQuery({
-        queryKey: ['hotels', searchCity],
-        queryFn: () => hotelsApi.list({ city: searchCity || undefined }),
+    const { data: hotels = [], isLoading } = useQuery({
+        queryKey: ['hotels'],
+        queryFn: getHotels,
     });
 
-    const hotels = data?.data?.data || [];
+    // Filter hotels by search city (client-side for now)
+    const filteredHotels = searchCity
+        ? hotels.filter((h: Hotel) => h.city.toLowerCase().includes(searchCity.toLowerCase()))
+        : hotels;
 
     return (
         <div className="animate-fade-in">
@@ -107,13 +110,13 @@ export default function HomePage() {
                                 </div>
                             ))}
                         </div>
-                    ) : hotels.length === 0 ? (
+                    ) : filteredHotels.length === 0 ? (
                         <div className="text-center py-16">
                             <p className="text-gray-500 text-lg">No hotels found. Try a different search.</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {hotels.map((hotel: Hotel) => (
+                            {filteredHotels.map((hotel: Hotel) => (
                                 <Link
                                     key={hotel.id}
                                     to={`/hotels/${hotel.slug}`}

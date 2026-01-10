@@ -7,54 +7,78 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- =====================================================
--- ENUMS
+-- ENUMS (Idempotent - safe to run multiple times)
 -- =====================================================
 
-CREATE TYPE user_role AS ENUM (
-    'SUPER_ADMIN',
-    'HOTEL_ADMIN',
-    'DUTY_MANAGER',
-    'RECEPTION',
-    'HOUSEKEEPING',
-    'ACCOUNTS',
-    'CUSTOMER'
-);
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM (
+        'SUPER_ADMIN',
+        'HOTEL_ADMIN',
+        'DUTY_MANAGER',
+        'RECEPTION',
+        'HOUSEKEEPING',
+        'ACCOUNTS',
+        'CUSTOMER'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE booking_status AS ENUM (
-    'PENDING',
-    'CONFIRMED',
-    'CHECKED_IN',
-    'CHECKED_OUT',
-    'CANCELLED',
-    'NO_SHOW'
-);
+DO $$ BEGIN
+    CREATE TYPE booking_status AS ENUM (
+        'PENDING',
+        'CONFIRMED',
+        'CHECKED_IN',
+        'CHECKED_OUT',
+        'CANCELLED',
+        'NO_SHOW'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE payment_session_status AS ENUM (
-    'PENDING',
-    'PAID',
-    'EXPIRED',
-    'FAILED'
-);
+DO $$ BEGIN
+    CREATE TYPE payment_session_status AS ENUM (
+        'PENDING',
+        'PAID',
+        'EXPIRED',
+        'FAILED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE payment_status AS ENUM (
-    'PENDING',
-    'COMPLETED',
-    'REFUNDED',
-    'FAILED'
-);
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM (
+        'PENDING',
+        'COMPLETED',
+        'REFUNDED',
+        'FAILED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE room_status AS ENUM (
-    'AVAILABLE',
-    'OCCUPIED',
-    'CLEANING',
-    'MAINTENANCE',
-    'OUT_OF_ORDER'
-);
+DO $$ BEGIN
+    CREATE TYPE room_status AS ENUM (
+        'AVAILABLE',
+        'OCCUPIED',
+        'CLEANING',
+        'MAINTENANCE',
+        'OUT_OF_ORDER'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
-CREATE TYPE day_type AS ENUM (
-    'WEEKDAY',
-    'WEEKEND'
-);
+DO $$ BEGIN
+    CREATE TYPE day_type AS ENUM (
+        'WEEKDAY',
+        'WEEKEND'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- =====================================================
 -- USERS & AUTHENTICATION

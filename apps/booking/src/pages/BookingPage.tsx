@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useBookingStore, useAuthStore, useIsAuthenticated } from '../store';
-import { bookingsApi, couponsApi } from '../lib/api';
+import { createBooking, validateCoupon, getHotelRoomTypes } from '../lib/queries';
 import { format, differenceInDays } from 'date-fns';
 import { Calendar, Users, Building2, Tag, Check, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 export default function BookingPage() {
     const navigate = useNavigate();
@@ -35,47 +36,43 @@ export default function BookingPage() {
         ? differenceInDays(new Date(booking.checkOutDate), new Date(booking.checkInDate))
         : 0;
 
-    // Calculate price
-    const { data: priceData, isLoading: priceLoading } = useQuery({
-        queryKey: ['price', booking.hotelId, booking.roomTypeId, booking.checkInDate, booking.checkOutDate, appliedCoupon?.code],
-        queryFn: () => bookingsApi.calculatePrice({
-            hotel_id: booking.hotelId!,
-            room_type_id: booking.roomTypeId!,
-            check_in_date: booking.checkInDate!,
-            check_out_date: booking.checkOutDate!,
-            coupon_code: appliedCoupon?.code,
-        }),
-        enabled: !!booking.hotelId && !!booking.roomTypeId && !!booking.checkInDate && !!booking.checkOutDate,
+    // Get room type for pricing
+    const { data: roomTypes = [] } = useQuery({
+        queryKey: ['roomTypes', booking.hotelId],
+        queryFn: () => getHotelRoomTypes(booking.hotelId!),
+        enabled: !!booking.hotelId,
     });
 
-    const pricing = priceData?.data;
+    const selectedRoom = roomTypes.find((rt: any) => rt.id === booking.roomTypeId);
+    const basePrice = selectedRoom ? Number(selectedRoom.base_price) : 0;
+    const subtotal = basePrice * nights;
+    const taxes = Math.round(subtotal * 0.18); // 18% GST
+    const totalAmount = subtotal + taxes - (appliedCoupon?.discount || 0);
 
     // Apply coupon
     const applyCouponMutation = useMutation({
-        mutationFn: () => couponsApi.validate({
-            code: couponCode,
-            hotel_id: booking.hotelId!,
-            booking_amount: pricing?.subtotal || 0,
-        }),
-        onSuccess: (data) => {
-            if (data.data.valid) {
-                setAppliedCoupon({
-                    code: data.data.coupon.code,
-                    discount: data.data.discount_amount,
-                });
-                setCouponError('');
+        mutationFn: () => validateCoupon(couponCode, booking.hotelId!),
+        onSuccess: (coupon) => {
+            let discount = 0;
+            if (coupon.discount_type === 'PERCENTAGE') {
+                discount = Math.min(
+                    (subtotal * Number(coupon.discount_value)) / 100,
+                    coupon.max_discount ? Number(coupon.max_discount) : subtotal
+                );
             } else {
-                setCouponError(data.data.error || 'Invalid coupon');
+                discount = Number(coupon.discount_value);
             }
+            setAppliedCoupon({ code: coupon.code, discount });
+            setCouponError('');
         },
         onError: (error: any) => {
-            setCouponError(error.response?.data?.message || 'Failed to validate coupon');
+            setCouponError(error.message || 'Invalid coupon');
         },
     });
 
     // Create booking
     const createBookingMutation = useMutation({
-        mutationFn: () => bookingsApi.create({
+        mutationFn: () => createBooking({
             hotel_id: booking.hotelId!,
             room_type_id: booking.roomTypeId!,
             check_in_date: booking.checkInDate!,
@@ -88,7 +85,7 @@ export default function BookingPage() {
             coupon_code: appliedCoupon?.code,
         }),
         onSuccess: (data) => {
-            navigate(`/payment/${data.data.id}`);
+            navigate(`/payment/${data.id}`);
         },
     });
 
@@ -250,46 +247,39 @@ export default function BookingPage() {
                     <div className="card p-6 sticky top-24">
                         <h3 className="font-display text-xl font-bold text-gray-900 mb-6">Price Summary</h3>
 
-                        {priceLoading ? (
-                            <div className="space-y-3 animate-pulse">
-                                <div className="h-4 bg-gray-200 rounded"></div>
-                                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-                                <div className="h-6 bg-gray-200 rounded mt-4"></div>
-                            </div>
-                        ) : pricing ? (
+                        {basePrice > 0 ? (
                             <div className="space-y-3">
                                 <div className="flex justify-between text-sm">
-                                    <span>₹{pricing.base_price.toLocaleString()} × {nights} nights</span>
-                                    <span>₹{pricing.subtotal.toLocaleString()}</span>
+                                    <span>₹{basePrice.toLocaleString()} × {nights} nights</span>
+                                    <span>₹{subtotal.toLocaleString()}</span>
                                 </div>
 
-                                {pricing.seasonal_multiplier !== 1 && (
-                                    <div className="flex justify-between text-sm text-gray-500">
-                                        <span>Seasonal pricing</span>
-                                        <span>×{pricing.seasonal_multiplier}</span>
-                                    </div>
-                                )}
-
-                                {appliedCoupon && pricing.coupon_discount > 0 && (
+                                {appliedCoupon && (
                                     <div className="flex justify-between text-sm text-green-600">
                                         <span>Coupon ({appliedCoupon.code})</span>
-                                        <span>-₹{pricing.coupon_discount.toLocaleString()}</span>
+                                        <span>-₹{appliedCoupon.discount.toLocaleString()}</span>
                                     </div>
                                 )}
 
                                 <div className="flex justify-between text-sm">
-                                    <span>Taxes & fees (GST)</span>
-                                    <span>₹{pricing.taxes.toLocaleString()}</span>
+                                    <span>Taxes & fees (GST 18%)</span>
+                                    <span>₹{taxes.toLocaleString()}</span>
                                 </div>
 
                                 <div className="pt-4 border-t">
                                     <div className="flex justify-between font-bold text-lg">
                                         <span>Total</span>
-                                        <span className="text-primary-600">₹{pricing.total_amount.toLocaleString()}</span>
+                                        <span className="text-primary-600">₹{totalAmount.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>
-                        ) : null}
+                        ) : (
+                            <div className="space-y-3 animate-pulse">
+                                <div className="h-4 bg-gray-200 rounded"></div>
+                                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+                                <div className="h-6 bg-gray-200 rounded mt-4"></div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

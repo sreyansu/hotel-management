@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore, useIsAuthenticated } from '../store';
-import { authApi } from '../lib/api';
+import { updateUserProfile } from '../lib/queries';
 import { User, Mail, Phone, Save } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -28,9 +28,9 @@ export default function ProfilePage() {
     }, [user]);
 
     const updateMutation = useMutation({
-        mutationFn: (data: { full_name?: string; phone?: string }) => authApi.updateMe(data),
-        onSuccess: (response) => {
-            setUser({ ...user!, ...response.data });
+        mutationFn: (data: { full_name?: string; phone?: string }) => updateUserProfile(data),
+        onSuccess: (updatedProfile) => {
+            setUser({ ...user!, ...updatedProfile });
             setSuccessMessage('Profile updated successfully!');
             setTimeout(() => setSuccessMessage(''), 3000);
         },

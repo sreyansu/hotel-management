@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { hotelsApi } from '../lib/api';
+import { getHotelBySlug, getHotelRoomTypes } from '../lib/queries';
 import { useBookingStore, useIsAuthenticated } from '../store';
 import { MapPin, Star, Clock, Wifi, Car, Coffee, Users, Check, Calendar } from 'lucide-react';
 import { useState } from 'react';
@@ -17,20 +17,17 @@ export default function HotelPage() {
     const [guests, setGuests] = useState(2);
     const [selectedRoomType, setSelectedRoomType] = useState<string | null>(null);
 
-    const { data: hotel, isLoading } = useQuery({
+    const { data: hotelData, isLoading } = useQuery({
         queryKey: ['hotel', slug],
-        queryFn: () => hotelsApi.getBySlug(slug!),
+        queryFn: () => getHotelBySlug(slug!),
         enabled: !!slug,
     });
 
-    const { data: roomTypesData } = useQuery({
-        queryKey: ['roomTypes', hotel?.data?.id, checkIn, checkOut],
-        queryFn: () => hotelsApi.getRoomTypes(hotel?.data?.id, checkIn, checkOut),
-        enabled: !!hotel?.data?.id && !!checkIn && !!checkOut,
+    const { data: roomTypes = [] } = useQuery({
+        queryKey: ['roomTypes', hotelData?.id],
+        queryFn: () => getHotelRoomTypes(hotelData!.id),
+        enabled: !!hotelData?.id,
     });
-
-    const hotelData = hotel?.data;
-    const roomTypes = roomTypesData?.data || [];
 
     const handleBookNow = () => {
         if (!selectedRoomType || !hotelData) return;

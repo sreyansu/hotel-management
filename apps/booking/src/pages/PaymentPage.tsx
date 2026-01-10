@@ -1,77 +1,118 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { bookingsApi } from '../lib/api';
-import { Clock, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { getBookingById, createRazorpayOrder, verifyRazorpayPayment } from '../lib/queries';
+import { CreditCard, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 export default function PaymentPage() {
     const { bookingId } = useParams<{ bookingId: string }>();
     const navigate = useNavigate();
-    const [timeLeft, setTimeLeft] = useState<number>(0);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
-    // Create payment session
-    const { data: sessionData, isLoading } = useQuery({
-        queryKey: ['paymentSession', bookingId],
-        queryFn: async () => {
-            const response = await bookingsApi.createPaymentSession(bookingId!);
-            return response.data;
-        },
+    // Load Razorpay script
+    useEffect(() => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        return () => {
+            document.body.removeChild(script);
+        };
+    }, []);
+
+    // Get booking details
+    const { data: booking, isLoading, isError } = useQuery({
+        queryKey: ['booking', bookingId],
+        queryFn: () => getBookingById(bookingId!),
         enabled: !!bookingId,
-        refetchInterval: 5000, // Check status every 5 seconds
     });
 
-    const session = sessionData;
-
-    // Timer countdown
-    useEffect(() => {
-        if (session?.remaining_seconds) {
-            setTimeLeft(session.remaining_seconds);
-        }
-    }, [session?.remaining_seconds]);
-
-    useEffect(() => {
-        if (timeLeft <= 0) return;
-
-        const timer = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer);
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [timeLeft]);
-
-    // Check if payment was successful
-    useEffect(() => {
-        if (session?.status === 'PAID') {
+    // Verify payment mutation
+    const verifyMutation = useMutation({
+        mutationFn: verifyRazorpayPayment,
+        onSuccess: () => {
             navigate(`/confirmation/${bookingId}`);
-        }
-    }, [session?.status, bookingId, navigate]);
+        },
+        onError: (err: any) => {
+            setError(err.message || 'Payment verification failed');
+        },
+    });
 
-    const formatTime = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    const handlePayment = async () => {
+        if (!booking || !bookingId) return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            // Create Razorpay order
+            const orderData = await createRazorpayOrder(bookingId);
+
+            // Open Razorpay checkout
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: 'Grand Palace Hotels',
+                description: `Booking ${orderData.booking_reference}`,
+                order_id: orderData.order_id,
+                prefill: {
+                    name: orderData.guest_name,
+                    email: orderData.guest_email,
+                    contact: orderData.guest_phone,
+                },
+                theme: {
+                    color: '#7C3AED',
+                },
+                handler: async function (response: any) {
+                    // Verify payment
+                    verifyMutation.mutate({
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                        booking_id: bookingId,
+                    });
+                },
+                modal: {
+                    ondismiss: function () {
+                        setLoading(false);
+                    },
+                },
+            };
+
+            const razorpay = new window.Razorpay(options);
+            razorpay.on('payment.failed', function (response: any) {
+                setError(response.error?.description || 'Payment failed');
+                setLoading(false);
+            });
+            razorpay.open();
+        } catch (err: any) {
+            setError(err.message || 'Failed to start payment');
+            setLoading(false);
+        }
     };
 
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+            <div className="min-h-[60vh] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
             </div>
         );
     }
 
-    if (!session) {
+    if (isError || !booking) {
         return (
             <div className="max-w-lg mx-auto px-4 py-16 text-center">
-                <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Session Not Found</h1>
-                <p className="text-gray-600 mb-6">The payment session could not be loaded.</p>
+                <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Booking Not Found</h1>
+                <p className="text-gray-600 mb-6">We couldn't find this booking.</p>
                 <button onClick={() => navigate('/')} className="btn-primary">
                     Go to Home
                 </button>
@@ -79,16 +120,14 @@ export default function PaymentPage() {
         );
     }
 
-    if (session.status === 'EXPIRED' || timeLeft === 0) {
+    if (booking.status === 'CONFIRMED') {
         return (
             <div className="max-w-lg mx-auto px-4 py-16 text-center">
-                <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Session Expired</h1>
-                <p className="text-gray-600 mb-6">
-                    The payment session has expired. Please create a new booking to continue.
-                </p>
-                <button onClick={() => navigate('/')} className="btn-primary">
-                    Book Again
+                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Already Paid!</h1>
+                <p className="text-gray-600 mb-6">This booking has already been confirmed.</p>
+                <button onClick={() => navigate(`/confirmation/${bookingId}`)} className="btn-primary">
+                    View Confirmation
                 </button>
             </div>
         );
@@ -98,85 +137,73 @@ export default function PaymentPage() {
         <div className="max-w-lg mx-auto px-4 py-8 animate-fade-in">
             <div className="text-center mb-8">
                 <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Complete Payment</h1>
-                <p className="text-gray-600">Scan the QR code to pay via UPI</p>
+                <p className="text-gray-600">Pay securely with Razorpay</p>
             </div>
 
-            <div className="card p-8">
-                {/* Timer */}
-                <div className={`flex items-center justify-center gap-2 mb-6 ${timeLeft <= 60 ? 'text-red-600' : 'text-gray-600'
-                    }`}>
-                    <Clock className="w-5 h-5" />
-                    <span className="font-mono text-lg">
-                        Session expires in: <span className="font-bold">{formatTime(timeLeft)}</span>
-                    </span>
+            <div className="card p-6 space-y-6">
+                {/* Booking Summary */}
+                <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="text-sm text-gray-500 mb-1">Booking Reference</div>
+                    <div className="font-mono font-medium text-gray-900">{booking.booking_reference}</div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-8">
-                    <div
-                        className={`h-2 rounded-full transition-all duration-1000 ${timeLeft <= 60 ? 'bg-red-500' : 'bg-primary-500'
-                            }`}
-                        style={{ width: `${(timeLeft / 300) * 100}%` }}
-                    ></div>
-                </div>
-
-                {/* QR Code */}
-                <div className="bg-white p-4 rounded-xl border-2 border-dashed border-gray-200 mb-6">
-                    {session.qr_code_data ? (
-                        <img
-                            src={session.qr_code_data}
-                            alt="Payment QR Code"
-                            className="w-64 h-64 mx-auto"
-                        />
-                    ) : (
-                        <div className="w-64 h-64 bg-gray-100 flex items-center justify-center mx-auto">
-                            <span className="text-gray-500">QR Code</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Amount */}
-                <div className="text-center mb-6">
-                    <div className="text-sm text-gray-500 mb-1">Amount to pay</div>
-                    <div className="font-display text-3xl font-bold text-primary-600">
-                        ₹{session.amount?.toLocaleString()}
+                <div className="space-y-3">
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">Hotel</span>
+                        <span className="font-medium">{booking.hotels?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">Room Type</span>
+                        <span className="font-medium">{booking.room_types?.name}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">Check-in</span>
+                        <span className="font-medium">{new Date(booking.check_in_date).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-gray-600">Check-out</span>
+                        <span className="font-medium">{new Date(booking.check_out_date).toLocaleDateString()}</span>
                     </div>
                 </div>
 
-                {/* UPI ID */}
-                {session.upi_id && (
-                    <div className="bg-gray-50 rounded-lg p-4 text-center">
-                        <div className="text-sm text-gray-500 mb-1">Or pay directly to</div>
-                        <div className="font-mono text-lg font-medium">{session.upi_id}</div>
+                <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold">Total Amount</span>
+                        <span className="text-2xl font-bold text-primary-600">
+                            ₹{Number(booking.total_amount).toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+
+                {error && (
+                    <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 text-sm">
+                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                        {error}
                     </div>
                 )}
 
-                {/* Status indicator */}
-                <div className="mt-6 text-center">
-                    <div className="inline-flex items-center gap-2 text-gray-500">
-                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                        <span>Waiting for payment...</span>
-                    </div>
-                </div>
+                <button
+                    onClick={handlePayment}
+                    disabled={loading || verifyMutation.isPending}
+                    className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-3"
+                >
+                    {loading || verifyMutation.isPending ? (
+                        <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Processing...
+                        </>
+                    ) : (
+                        <>
+                            <CreditCard className="w-5 h-5" />
+                            Pay ₹{Number(booking.total_amount).toLocaleString()}
+                        </>
+                    )}
+                </button>
 
-                {/* Instructions */}
-                <div className="mt-8 text-sm text-gray-500 space-y-2">
-                    <p className="font-medium">How to pay:</p>
-                    <ol className="list-decimal list-inside space-y-1">
-                        <li>Open any UPI app (Google Pay, PhonePe, Paytm, etc.)</li>
-                        <li>Scan the QR code above</li>
-                        <li>Verify the amount and confirm payment</li>
-                        <li>Wait for confirmation on this page</li>
-                    </ol>
-                </div>
+                <p className="text-xs text-gray-500 text-center">
+                    Secured by Razorpay. We support UPI, Cards, Net Banking & Wallets.
+                </p>
             </div>
-
-            {/* Note */}
-            <p className="text-center text-sm text-gray-500 mt-6">
-                Do not close this page until payment is confirmed.
-                <br />
-                The page will automatically update once payment is received.
-            </p>
         </div>
     );
 }

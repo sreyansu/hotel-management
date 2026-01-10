@@ -1,83 +1,141 @@
-# 🚀 Deployment Guide (Railway + Netlify)
+# 🚀 Deployment Guide
 
-This guide describes the recommended deployment architecture for the Hotel Management Platform. This "Hybrid" approach is robust, scalable, and easy to manage.
+This guide covers deploying the Hotel Management Platform with **Supabase** for backend services and **Netlify/Vercel** for frontend hosting.
 
 ## 🏗 Architecture
 
-- **Backend (Node.js/Fastify):** Deployed on **Railway** (or Render). Ideally suited for long-running Node.js processes.
-- **Frontends (React/Vite):** Deployed on **Netlify**. Ideally suited for static sites and SPAs.
-- **Database:** Supabase (PostgreSQL).
+| Component | Platform | Description |
+|-----------|----------|-------------|
+| **Database** | Supabase | PostgreSQL with Row Level Security |
+| **Auth** | Supabase Auth | Email/Password + Google OAuth |
+| **Edge Functions** | Supabase | Booking, Payments (Razorpay) |
+| **Frontend Apps** | Netlify/Vercel | React + Vite SPAs |
 
 ---
 
-## 1. Backend Deployment (Render)
+## 1. Supabase Setup
 
-We recommend **Render** for the backend as it offers a free tier and easy setup for Node.js services.
+### A. Database & Auth
 
-### Steps:
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the schema SQL in SQL Editor (`database/schema.sql`)
+3. Run the auth setup SQL (`database/supabase-auth-setup.sql`)
+4. Enable providers in **Authentication → Providers**:
+   - Email (with "Confirm email" enabled)
+   - Google (add OAuth credentials)
 
-1.  **Sign up/Login** to [Render](https://render.com/).
-2.  **New click** > **Web Service**.
-3.  **Connect GitHub** and select your repository (`hotel-management`).
-4.  **Configure Service**:
-    -   **Name:** `hotel-backend` (or similar)
-    -   **Root Directory:** `backend`
-    -   **Environment:** `Node`
-    -   **Build Command:** `npm install && npm run build`
-    -   **Start Command:** `npm start`
-5.  **Environment Variables**:
-    -   Go to **Environment** tab.
-    -   Add all variables from your `backend/.env` file.
-    -   **CRITICAL:** For `FIREBASE_PRIVATE_KEY`, if you have issues with newlines, try wrapping the entire key in double quotes or replacing newlines with `\n` literal. Render usually handles the raw copy-paste well.
-6.  **Deploy Web Service**.
-7.  **Copy the URL** (e.g., `https://hotel-backend.onrender.com`). You will need this for the frontend.
+### B. Deploy Edge Functions
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Login and link project
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+
+# Deploy all functions
+supabase functions deploy create-booking
+supabase functions deploy razorpay-create-order
+supabase functions deploy razorpay-verify
+```
+
+### C. Set Secrets
+
+```bash
+# Razorpay credentials
+supabase secrets set RAZORPAY_KEY_ID=rzp_live_xxxxx
+supabase secrets set RAZORPAY_KEY_SECRET=your_secret_key
+```
 
 ---
 
 ## 2. Frontend Deployment (Netlify)
 
-This repository contains **two** frontend applications. You need to create **two separate sites** on Netlify, linked to the same GitHub repository.
-
 ### A. Consumer Booking App (`apps/booking`)
 
-1.  **New Site from Git** in Netlify.
-2.  Select the **same repository**.
-3.  **Build Settings**:
-    -   **Base directory:** `apps/booking`
-    -   **Build command:** `npm run build`
-    -   **Publish directory:** `dist`
-4.  **Environment Variables**:
-    -   `VITE_API_URL`: **Paste your Railway Backend URL here** (e.g., `https://hotel-backend-production.up.railway.app/api/v1`). **IMPORTANT:** Append `/api/v1` to the end.
-    -   Add your Firebase variables (`VITE_FIREBASE_API_KEY`, etc.).
-5.  **Deploy Site**.
+1. **New Site from Git** in Netlify
+2. **Build Settings**:
+   - Base directory: `apps/booking`
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+3. **Environment Variables**:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   ```
 
 ### B. Admin Dashboard (`apps/dashboard`)
 
-1.  **New Site from Git** in Netlify (repeat the process).
-2.  Select the **same repository**.
-3.  **Build Settings**:
-    -   **Base directory:** `apps/dashboard`
-    -   **Build command:** `npm run build`
-    -   **Publish directory:** `dist`
-4.  **Environment Variables**:
-    -   `VITE_API_URL`: **Paste your Railway Backend URL here** (e.g., `https://hotel-backend-production.up.railway.app/api/v1`).
-    -   Add your Firebase variables.
-5.  **Deploy Site**.
+1. **New Site from Git** (same repo)
+2. **Build Settings**:
+   - Base directory: `apps/dashboard`
+   - Build command: `npm run build`
+   - Publish directory: `dist`
+3. **Environment Variables**: Same as booking app
 
 ---
 
-## 3. Post-Deployment Verification
+## 3. Razorpay Setup
 
-1.  **Backend Health:** Visit `https://<YOUR_BACKEND_URL>/health`. You should see `{"status":"ok"}`.
-2.  **Frontend Connectivity:** Open your Booking App. Check the Console (F12). It should log the connected API URL. Try to search for hotels.
-3.  **Authentication:** Try to Sign Up/Login. If it fails:
-    -   Check backend logs in Railway.
-    -   Check frontend console for errors.
-    -   Verify `FIREBASE_PRIVATE_KEY` in Railway variables.
+1. Create account at [razorpay.com](https://razorpay.com)
+2. Get API keys from **Settings → API Keys**
+3. Add keys to Supabase secrets (see above)
+4. Configure webhook URL (optional):
+   ```
+   https://your-project.supabase.co/functions/v1/razorpay-webhook
+   ```
 
-## 🌟 Open Source Setup
+### Supported Payment Methods
+- UPI (Google Pay, PhonePe, Paytm, BHIM)
+- Credit/Debit Cards (Visa, Mastercard, Rupay)
+- Net Banking (50+ banks)
+- Wallets (Paytm, Mobikwik, etc.)
+- EMI & Pay Later options
 
-If you are making this public:
-1.  Ensure no `.env` files are committed (checked `gitignore`, looks good).
-2.  The `CONTRIBUTING.md` file (added) guides new users.
-3.  Users will need their own Supabase and Firebase projects.
+---
+
+## 4. Post-Deployment Checklist
+
+- [ ] Run database schema and seed data
+- [ ] Enable email verification in Supabase
+- [ ] Configure Google OAuth redirect URLs
+- [ ] Deploy Edge Functions
+- [ ] Set Razorpay secrets
+- [ ] Deploy frontend apps
+- [ ] Test user registration/login
+- [ ] Test booking + payment flow
+
+---
+
+## Environment Variables Summary
+
+### Supabase Edge Functions (Secrets)
+```bash
+RAZORPAY_KEY_ID=rzp_xxxxx
+RAZORPAY_KEY_SECRET=your_secret
+```
+
+### Frontend Apps (.env)
+```bash
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1Ni...
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Auth not working | Check Supabase Auth settings, enable email provider |
+| Google login fails | Verify OAuth redirect URLs in Google Console |
+| Payment fails | Check Razorpay secrets, verify API keys are live/test |
+| Edge Function 500 | Check Supabase logs: `supabase functions logs` |
+| CORS errors | Edge functions include CORS headers by default |
+
+---
+
+## Legacy Backend (Optional)
+
+The `backend/` folder contains the original Fastify server. It's **no longer required** since all functionality has been migrated to Supabase Auth + Edge Functions. You can archive or delete it.
